@@ -2,8 +2,14 @@
 
 import torch
 import numpy as np
-import tqdm
 import time
+
+try:
+    from gradio import Progress
+    gradio_valid = True
+except:
+    import tqdm
+    gradio_valid = False
 
 
 def decode_trunck(trunck, model, device):
@@ -32,7 +38,10 @@ def extract_watermark_v3_batch(data, start_bit, shift_range, num_point, model, d
 
     the_iter = range(total_batch_counts)
     if show_progress:
-        the_iter = tqdm.tqdm(range(total_batch_counts))
+        if gradio_valid:
+            the_iter = Progress().tqdm(range(total_batch_counts), desc="Processing")
+        else:
+            the_iter = tqdm.tqdm(range(total_batch_counts))
 
     for i in the_iter:
         detect_points = total_detect_points[i * batch_size:i * batch_size + batch_size]

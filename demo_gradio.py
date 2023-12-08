@@ -2,22 +2,14 @@ import gradio as gr
 import numpy as np
 import soundfile
 import torch
-import src.watermark_utils as wm_utils
+import src.wavmark as wavmark
 
 import os
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-watermark_len = 32
-center = watermark_len // 2
-min_len, max_len = center - center // 2, center + center // 2
-fix_payload_len = 24
-model = wm_utils.load_model(f"ckpt/9-1-wavmarkConfig_wl{watermark_len}lr1e-4audioMSElosslam100.pt", watermark_len).to(
-    device)
-
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model = wavmark.load_model().to(device)
-
-pattern_bits = 16
+watermark_len = 32
+fix_payload_len = 16
 
 
 audio_input_type = 0
@@ -40,7 +32,6 @@ def select_sample_audio(evt: gr.SelectData):
 
 def generate_rand_wm():
     global fix_payload_len
-    # wm_l = np.random.choice([i for i in range(min_len, max_len + 1)], 1)[0]
     wm_l = fix_payload_len
     return "".join(list(map(str, np.random.randint(0, 2, (wm_l,)))))
 
@@ -55,13 +46,12 @@ def encode_watermark(audio_upload, audio_preload,  watermark_str):
         raise ValueError(f"Unknow audio input_type {audio_input_type}")
 
     watermark = np.array(list(map(int, watermark_str)), dtype=np.int32)
-    assert min_len <= len(watermark) <= max_len
     pattern_bits = watermark_len - len(watermark)
 
     signal, sr = soundfile.read(audio)
     if len(signal.shape) > 1:
         signal = signal[:, 0].reshape(-1, )
-    watermarked_signal, info_encode = wm_utils.encode_watermark(model, signal, watermark,
+    watermarked_signal, info_encode = wavmark.encode_watermark(model, signal, watermark,
                                                                 pattern_bit_length=pattern_bits,
                                                                 show_progress=True)
     output_info = f"Time: {info_encode['time_cost']:.2f}s\n" \
@@ -77,14 +67,12 @@ def decode_watermark(audio, watermark=""):
         wm_len = len(watermark)
     else:
         watermark = None
-        # wm_len = int(wm_len)
         wm_len = fix_payload_len
-    assert min_len <= wm_len <= max_len
 
     signal, sr = soundfile.read(audio)
     if len(signal.shape) > 1:
         signal = signal[:, 0].reshape(-1, )
-    watermark_decoded, info = wm_utils.decode_watermark(model, signal, len_start_bit=watermark_len - wm_len,
+    watermark_decoded, info = wavmark.decode_watermark(model, signal, len_start_bit=watermark_len - wm_len,
                                                         show_progress=True)
     more_info = f"Time: {info['time_cost']:.2f}"
 

@@ -1,8 +1,14 @@
 import torch
 import numpy as np
 from ..utils import metric_util
-import tqdm
 import time
+
+try:
+    from gradio import Progress
+    gradio_valid = True
+except:
+    import tqdm
+    gradio_valid = False
 
 # The pattern bits can be any random sequence.
 # But don't use all-zeros, all-ones, or any periodic sequence, which will seriously hurt decoding performance.
@@ -26,7 +32,10 @@ def add_watermark(bit_arr, data, num_point, shift_range, device, model, min_snr,
 
     the_iter = range(num_segments)
     if show_progress:
-        the_iter = tqdm.tqdm(the_iter, desc="Processing")
+        if gradio_valid:
+            the_iter = Progress().tqdm(the_iter, desc="Processing")
+        else:
+            the_iter = tqdm.tqdm(the_iter, desc="Processing")
 
     for i in the_iter:
         start_point = i * chunk_size
@@ -72,6 +81,7 @@ def encode_trunck_with_snr_check(idx_trunck, signal, wm, device, model, min_snr,
         encode_times += 1
         signal_wmd = encode_trunck(signal_for_encode, wm, device, model)  # obsismc: encode watermark into the signal
         snr = metric_util.signal_noise_ratio(signal, signal_wmd)
+        # TODO obsismc: why can skip the section that cannot be encoded well?
         if encode_times == 1 and snr < min_snr:
             print("skip section:%d, snr too low:%.1f" % (idx_trunck, min_snr))
             return signal, "skip"

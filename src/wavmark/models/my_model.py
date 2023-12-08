@@ -16,7 +16,7 @@ class Model(nn.Module):
 
     def stft(self, data):
         window = torch.hann_window(self.n_fft).to(data.device)
-        tmp = torch.stft(data, n_fft=self.n_fft, hop_length=self.hop_length, window=window, return_complex=False)
+        tmp = torch.stft(data, n_fft=self.n_fft, hop_length=self.hop_length, window=window, return_complex=True)
         # [1, 501, 41, 2]
         return tmp
 
@@ -27,20 +27,26 @@ class Model(nn.Module):
 
     def encode(self, signal, message):
         signal_fft = self.stft(signal)
+        signal_fft = torch.view_as_real(signal_fft)
         # (batch,freq_bins,time_frames,2)
 
         message_expand = self.watermark_fc(message)
         message_fft = self.stft(message_expand)
+        message_fft = torch.view_as_real(message_fft)
 
         signal_wmd_fft, msg_remain = self.enc_dec(signal_fft, message_fft, rev=False)
+        signal_wmd_fft = torch.view_as_complex(signal_wmd_fft.contiguous())
         # (batch,freq_bins,time_frames,2)
         signal_wmd = self.istft(signal_wmd_fft)
         return signal_wmd
 
     def decode(self, signal):
         signal_fft = self.stft(signal)
+        signal_fft = torch.view_as_real(signal_fft)
+
         watermark_fft = signal_fft  # obsismc: different from what the paper says
         _, message_restored_fft = self.enc_dec(signal_fft, watermark_fft, rev=True)
+        message_restored_fft = torch.view_as_complex(message_restored_fft.contiguous())
         message_restored_expanded = self.istft(message_restored_fft)
         message_restored_float = self.watermark_fc_back(message_restored_expanded).clamp(-1, 1)
         return message_restored_float
