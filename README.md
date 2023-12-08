@@ -1,6 +1,6 @@
-# Watermark Utility
+# Gradio GUI for [Wavmark](https://github.com/wavmark/wavmark)
 
-A Gradio utility to watermark WAV files and check for existing watermarks.
+A Gradio GUI for [Wavmark](https://github.com/wavmark/wavmark).
 
 ## Requirements
 Test in Python 3.10
